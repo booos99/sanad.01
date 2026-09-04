@@ -1,4 +1,6 @@
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { isValidPin, normalizePin } from '../auth'
+import { formatDateTime } from '../format'
 import { shareBackup } from '../shareBackup'
 import { downloadBackup } from '../storage'
 import { useStore } from '../store'
@@ -9,10 +11,30 @@ type Props = {
 }
 
 export function SettingsPage({ onNavigate }: Props) {
-  const { data, updateSettings, importFromText } = useStore()
+  const {
+    data,
+    updateSettings,
+    importFromText,
+    canEdit,
+    backups,
+    refreshBackups,
+    snapshotNow,
+    restoreBackup,
+    changePin,
+    guestEnabled,
+    setGuestEnabled,
+  } = useStore()
   const fileRef = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [currentPin, setCurrentPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [pinBusy, setPinBusy] = useState(false)
+
+  useEffect(() => {
+    void refreshBackups()
+  }, [refreshBackups])
 
   async function onShare() {
     setError('')
@@ -37,7 +59,7 @@ export function SettingsPage({ onNavigate }: Props) {
   async function onImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (!file) return
+    if (!file || !canEdit) return
     try {
       const text = await file.text()
       if (!confirm('استيراد النسخة يستبدل البيانات الحالية على هذا الجهاز. متابعة؟')) return
@@ -49,6 +71,60 @@ export function SettingsPage({ onNavigate }: Props) {
     }
   }
 
+  async function onSnapshot() {
+    setError('')
+    try {
+      await snapshotNow()
+      setMessage('حُفظت نسخة داخلية الآن.')
+    } catch {
+      setError('تعذر حفظ النسخة الداخلية.')
+    }
+  }
+
+  async function onRestore(id: string, createdAt: number) {
+    if (!canEdit) return
+    if (!confirm(`استعادة نسخة ${formatDateTime(createdAt)}؟ تستبدل البيانات الحالية.`)) return
+    setError('')
+    try {
+      await restoreBackup(id)
+      setMessage('تمت استعادة النسخة الداخلية.')
+    } catch {
+      setError('تعذر استعادة هذه النسخة.')
+    }
+  }
+
+  async function onChangePin(event: FormEvent) {
+    event.preventDefault()
+    const current = normalizePin(currentPin)
+    const next = normalizePin(newPin)
+    const again = normalizePin(confirmPin)
+    if (!isValidPin(next)) {
+      setError('الرقم الجديد من 4 إلى 8 أرقام.')
+      return
+    }
+    if (next !== again) {
+      setError('تأكيد الرقم الجديد غير مطابق.')
+      return
+    }
+    setPinBusy(true)
+    setError('')
+    try {
+      const ok = await changePin(current, next)
+      if (!ok) {
+        setError('الرقم الحالي غير صحيح.')
+        return
+      }
+      setCurrentPin('')
+      setNewPin('')
+      setConfirmPin('')
+      setMessage('تم تغيير الرقم السري.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'تعذر تغيير الرقم السري.')
+    } finally {
+      setPinBusy(false)
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-head">
@@ -56,11 +132,18 @@ export function SettingsPage({ onNavigate }: Props) {
         <h1>صندوق الجمعية</h1>
       </header>
 
+      {!canEdit ? (
+        <p className="banner">وضع المراجعة: يمكنك الاطلاع والتصدير والطباعة دون تعديل.</p>
+      ) : null}
+      {message ? <p className="ok-msg">{message}</p> : null}
+      {error ? <p className="err-msg">{error}</p> : null}
+
       <section className="card stack">
         <label>
           اسم الجمعية
           <input
             value={data.settings.name}
+            disabled={!canEdit}
             onChange={(e) => updateSettings({ name: e.target.value })}
           />
         </label>
@@ -69,6 +152,7 @@ export function SettingsPage({ onNavigate }: Props) {
           <AmountInput
             min="0"
             value={data.settings.monthlyAmount}
+            disabled={!canEdit}
             onChange={(monthlyAmount) => updateSettings({ monthlyAmount })}
           />
         </label>
@@ -76,6 +160,7 @@ export function SettingsPage({ onNavigate }: Props) {
           العملة
           <select
             value={data.settings.currency}
+            disabled={!canEdit}
             onChange={(e) => updateSettings({ currency: e.target.value })}
           >
             {CURRENCIES.map((item) => (
@@ -90,6 +175,7 @@ export function SettingsPage({ onNavigate }: Props) {
           <AmountInput
             step="0.01"
             value={data.settings.openingBalance}
+            disabled={!canEdit}
             onChange={(openingBalance) => updateSettings({ openingBalance })}
           />
         </label>
@@ -115,9 +201,11 @@ export function SettingsPage({ onNavigate }: Props) {
           <ShareIcon />
           مشاركة عبر واتساب
         </button>
-        <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
-          استيراد نسخة
-        </button>
+        {canEdit ? (
+          <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
+            استيراد نسخة
+          </button>
+        ) : null}
         <input
           ref={fileRef}
           type="file"
@@ -125,9 +213,103 @@ export function SettingsPage({ onNavigate }: Props) {
           className="hidden"
           onChange={(e) => void onImport(e)}
         />
-        {message ? <p className="ok-msg">{message}</p> : null}
-        {error ? <p className="err-msg">{error}</p> : null}
       </section>
+
+      <section className="card stack">
+        <h2>النسخ التلقائي</h2>
+        <p className="muted">
+          تُحفظ نسخة داخل التطبيق بعد كل تعديل، ويُحتفظ بآخر 10 نسخ حتى لو لم تصدّر ملفاً.
+        </p>
+        {canEdit ? (
+          <button type="button" className="btn ghost" onClick={() => void onSnapshot()}>
+            حفظ نسخة داخلية الآن
+          </button>
+        ) : null}
+        {backups.length === 0 ? (
+          <p className="muted">ستظهر النسخ هنا بعد أول حفظ.</p>
+        ) : (
+          <ul className="backup-list">
+            {backups.map((item) => (
+              <li key={item.id} className="backup-row">
+                <div>
+                  <strong>{formatDateTime(item.createdAt)}</strong>
+                  <span className="muted">
+                    {item.members} أعضاء · {item.payments} دفعات · {item.expenses} مصروفات
+                  </span>
+                </div>
+                {canEdit ? (
+                  <button type="button" className="btn compact ghost" onClick={() => void onRestore(item.id, item.createdAt)}>
+                    استعادة
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {canEdit ? (
+        <section className="card stack">
+          <h2>دخول الزائر</h2>
+          <p className="muted">الزائر يطّلع ويطبع دون تعديل. أزل التحديد لتعطيل زر الزائر في شاشة الدخول.</p>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={guestEnabled}
+              onChange={(event) => setGuestEnabled(event.target.checked)}
+            />
+            السماح بدخول الزائر للمراجعة
+          </label>
+        </section>
+      ) : null}
+
+      {canEdit ? (
+        <form className="card stack" onSubmit={(event) => void onChangePin(event)}>
+          <h2>الرقم السري</h2>
+          <p className="muted">
+            إذا نسيت الرقم، امسح بيانات الموقع من سفاري لهذا الرابط ثم أنشئ رقماً جديداً. صدّر نسخة قبل ذلك إن أمكن.
+          </p>
+          <label>
+            الرقم الحالي
+            <input
+              className="pin-input"
+              value={currentPin}
+              onChange={(event) => setCurrentPin(normalizePin(event.target.value))}
+              inputMode="numeric"
+              autoComplete="current-password"
+              maxLength={8}
+              required
+            />
+          </label>
+          <label>
+            الرقم الجديد
+            <input
+              className="pin-input"
+              value={newPin}
+              onChange={(event) => setNewPin(normalizePin(event.target.value))}
+              inputMode="numeric"
+              autoComplete="new-password"
+              maxLength={8}
+              required
+            />
+          </label>
+          <label>
+            تأكيد الرقم الجديد
+            <input
+              className="pin-input"
+              value={confirmPin}
+              onChange={(event) => setConfirmPin(normalizePin(event.target.value))}
+              inputMode="numeric"
+              autoComplete="new-password"
+              maxLength={8}
+              required
+            />
+          </label>
+          <button type="submit" className="btn" disabled={pinBusy}>
+            تغيير الرقم السري
+          </button>
+        </form>
+      ) : null}
     </div>
   )
 }
@@ -137,11 +319,13 @@ function AmountInput({
   onChange,
   min,
   step = '0.01',
+  disabled = false,
 }: {
   value: number
   onChange: (value: number) => void
   min?: string
   step?: string
+  disabled?: boolean
 }) {
   const [draft, setDraft] = useState<string | null>(null)
   const shown = draft ?? (value === 0 ? '' : String(value))
@@ -153,6 +337,7 @@ function AmountInput({
       min={min}
       step={step}
       value={shown}
+      disabled={disabled}
       onFocus={() => setDraft(value === 0 ? '' : String(value))}
       onBlur={() => setDraft(null)}
       onChange={(event) => {

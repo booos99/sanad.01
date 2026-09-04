@@ -6,7 +6,7 @@ import { Modal, ModalForm } from '../Modal'
 import { useStore } from '../store'
 
 export function ExpensesPage() {
-  const { data, addExpense, deleteExpense } = useStore()
+  const { data, addExpense, deleteExpense, canEdit } = useStore()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
@@ -31,9 +31,11 @@ export function ExpensesPage() {
           <p className="eyebrow">المصروفات</p>
           <h1>حركات الصرف</h1>
         </div>
-        <button type="button" className="btn compact" onClick={() => setOpen(true)}>
-          إضافة
-        </button>
+        {canEdit ? (
+          <button type="button" className="btn compact" onClick={() => setOpen(true)}>
+            إضافة
+          </button>
+        ) : null}
       </header>
 
       {ordered.length === 0 ? (
@@ -51,21 +53,23 @@ export function ExpensesPage() {
                   − {formatMoney(expense.amount, data.settings.currency)}
                 </span>
               </div>
-              <button
-                type="button"
-                className="text-danger"
-                onClick={() => {
-                  if (confirm('حذف هذا المصروف؟')) deleteExpense(expense.id)
-                }}
-              >
-                حذف
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="text-danger"
+                  onClick={() => {
+                    if (confirm('حذف هذا المصروف؟')) deleteExpense(expense.id)
+                  }}
+                >
+                  حذف
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
 
-      {open && (
+      {open && canEdit && (
         <Modal title="مصروف جديد" onClose={() => setOpen(false)}>
           <ModalForm onSubmit={submit}>
             <label>

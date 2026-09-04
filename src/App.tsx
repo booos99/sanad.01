@@ -27,14 +27,13 @@ export default function App() {
 }
 
 function AppShell() {
-  const [entered, setEntered] = useState(false)
   const [tab, setTab] = useState<Tab>('home')
-  const { data, calendar, setCalendar } = useStore()
+  const { data, calendar, setCalendar, role, logout } = useStore()
 
-  if (!entered) {
+  if (!role) {
     return (
       <div className="shell">
-        <LoginPage associationName={data.settings.name} onEnter={() => setEntered(true)} />
+        <LoginPage />
       </div>
     )
   }
@@ -68,7 +67,22 @@ function AppShell() {
             </button>
           </div>
         </div>
-        <p className="topbar-date">{formatCompact(todayIso(), calendar)}</p>
+        <div className="topbar-foot">
+          <p className="topbar-date">{formatCompact(todayIso(), calendar)}</p>
+          <button
+            type="button"
+            className="topbar-logout"
+            onClick={() => {
+              setTab('home')
+              logout()
+            }}
+          >
+            خروج
+          </button>
+        </div>
+        {role === 'guest' ? (
+          <p className="guest-flag">وضع المراجعة — عرض وطباعة فقط</p>
+        ) : null}
       </header>
 
       <main className="main">

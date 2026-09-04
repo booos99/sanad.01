@@ -10,7 +10,7 @@ export function PaymentsPage() {
   const now = currentYearMonth()
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
-  const { data, setPayment, unmarkPaid } = useStore()
+  const { data, setPayment, unmarkPaid, canEdit } = useStore()
   const due = data.settings.monthlyAmount
   const currency = data.settings.currency
   const payments = monthPayments(data, year, month)
@@ -68,8 +68,8 @@ export function PaymentsPage() {
         {monthLabel.hijri ? <p className="month-hijri span-2">{monthLabel.hijri}</p> : null}
       </section>
 
-      {due <= 0 && <p className="banner">حدد المبلغ الشهري من الإعدادات قبل تسجيل الدفعات.</p>}
-      {due > 0 ? (
+      {due <= 0 && canEdit && <p className="banner">حدد المبلغ الشهري من الإعدادات قبل تسجيل الدفعات.</p>}
+      {due > 0 && canEdit ? (
         <p className="hint-tap">اضغط العضو لتسجيل المبلغ وتحديد يوم وشهر وسنة الدفع.</p>
       ) : null}
 
@@ -89,7 +89,7 @@ export function PaymentsPage() {
                 <button
                   type="button"
                   className="list-card-main"
-                  disabled={due <= 0}
+                  disabled={!canEdit || due <= 0}
                   onClick={() => openEditor(member)}
                 >
                   <strong>{member.name}</strong>
@@ -108,32 +108,34 @@ export function PaymentsPage() {
                   )}
                   <span className={`pill ${statusClass(status)}`}>{statusLabel(status)}</span>
                 </button>
-                <div className="row-actions">
-                  <button
-                    type="button"
-                    className="btn compact"
-                    disabled={due <= 0}
-                    onClick={() => openEditor(member)}
-                  >
-                    {paid > 0 ? 'تعديل' : 'دفع'}
-                  </button>
-                  {paid > 0 ? (
+                {canEdit ? (
+                  <div className="row-actions">
                     <button
                       type="button"
-                      className="text-danger"
-                      onClick={() => unmarkPaid(member.id, year, month)}
+                      className="btn compact"
+                      disabled={due <= 0}
+                      onClick={() => openEditor(member)}
                     >
-                      إلغاء
+                      {paid > 0 ? 'تعديل' : 'دفع'}
                     </button>
-                  ) : null}
-                </div>
+                    {paid > 0 ? (
+                      <button
+                        type="button"
+                        className="text-danger"
+                        onClick={() => unmarkPaid(member.id, year, month)}
+                      >
+                        إلغاء
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </li>
             )
           })}
         </ul>
       )}
 
-      {editing && (
+      {editing && canEdit && (
         <Modal title={`دفعة ${editing.name}`} onClose={() => setEditing(null)}>
           <ModalForm onSubmit={savePayment}>
             <p className="muted">

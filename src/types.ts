@@ -1,5 +1,7 @@
 export type CalendarMode = 'hijri' | 'gregorian'
 
+export type Role = 'admin' | 'guest'
+
 export type Settings = {
   name: string
   monthlyAmount: number

@@ -1,9 +1,51 @@
-type Props = {
-  associationName: string
-  onEnter: () => void
-}
+import { useState, type FormEvent } from 'react'
+import { isValidPin, normalizePin } from '../auth'
+import { useStore } from '../store'
 
-export function LoginPage({ associationName, onEnter }: Props) {
+export function LoginPage() {
+  const { data, pinReady, guestEnabled, setupPin, loginAdmin, loginGuest } = useStore()
+  const [pin, setPin] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function onSetup(event: FormEvent) {
+    event.preventDefault()
+    const next = normalizePin(pin)
+    const again = normalizePin(confirm)
+    if (!isValidPin(next)) {
+      setError('الرقم السري من 4 إلى 8 أرقام.')
+      return
+    }
+    if (next !== again) {
+      setError('الرقمان غير متطابقين.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await setupPin(next)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'تعذر حفظ الرقم السري.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onAdmin(event: FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const ok = await loginAdmin(pin)
+      if (!ok) setError('الرقم السري غير صحيح.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'تعذر الدخول.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="login">
       <div className="login-mark" aria-hidden="true">
@@ -21,7 +63,71 @@ export function LoginPage({ associationName, onEnter }: Props) {
         </svg>
       </div>
       <p className="login-kicker">صندوق عائلي</p>
-      <h1>{associationName}</h1>
+      <h1>{data.settings.name}</h1>
+
+      {!pinReady ? (
+        <form className="login-form" onSubmit={(event) => void onSetup(event)}>
+          <p className="muted login-lead">أنشئ رقماً سرياً للمسؤول قبل استخدام الصندوق. يمكنك لاحقاً السماح بدخول الزائر أو تعطيله من الإعدادات.</p>
+          <label>
+            الرقم السري
+            <input
+              className="pin-input"
+              value={pin}
+              onChange={(event) => setPin(normalizePin(event.target.value))}
+              inputMode="numeric"
+              autoComplete="new-password"
+              maxLength={8}
+              placeholder="٤ إلى ٨ أرقام"
+              required
+            />
+          </label>
+          <label>
+            تأكيد الرقم
+            <input
+              className="pin-input"
+              value={confirm}
+              onChange={(event) => setConfirm(normalizePin(event.target.value))}
+              inputMode="numeric"
+              autoComplete="new-password"
+              maxLength={8}
+              required
+            />
+          </label>
+          {error ? <p className="err-msg">{error}</p> : null}
+          <button type="submit" className="btn add-wide" disabled={busy}>
+            حفظ ودخول كمسؤول
+          </button>
+        </form>
+      ) : (
+        <form className="login-form" onSubmit={(event) => void onAdmin(event)}>
+          <label>
+            الرقم السري للمسؤول
+            <input
+              className="pin-input"
+              value={pin}
+              onChange={(event) => setPin(normalizePin(event.target.value))}
+              inputMode="numeric"
+              autoComplete="current-password"
+              maxLength={8}
+              placeholder="••••"
+              required
+            />
+          </label>
+          {error ? <p className="err-msg">{error}</p> : null}
+          <div className="login-actions">
+            <button type="submit" className="btn add-wide" disabled={busy}>
+              دخول المسؤول
+            </button>
+            {guestEnabled ? (
+              <button type="button" className="btn ghost add-wide" disabled={busy} onClick={loginGuest}>
+                دخول كزائر للمراجعة
+              </button>
+            ) : (
+              <p className="muted login-lead">دخول الزائر معطّل من الإعدادات.</p>
+            )}
+          </div>
+        </form>
+      )}
 
       <section className="card hint login-hint">
         <h2>إضافة للشاشة الرئيسية</h2>
@@ -31,10 +137,6 @@ export function LoginPage({ associationName, onEnter }: Props) {
           <li>زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»</li>
         </ol>
       </section>
-
-      <button type="button" className="btn add-wide" onClick={onEnter}>
-        دخول
-      </button>
     </div>
   )
 }

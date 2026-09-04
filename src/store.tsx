@@ -4,16 +4,40 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
+import {
+  clearSession,
+  hasPin,
+  isGuestLoginEnabled,
+  loadSession,
+  saveSession,
+  verifyPin,
+  writeGuestLoginEnabled,
+  writePin,
+} from './auth'
+import {
+  enqueueAutoBackup,
+  ensureInitialBackup,
+  getBackupData,
+  listBackups,
+  saveBackupNow,
+  type BackupMeta,
+} from './autoBackup'
 import { currentYearMonth, newId, todayIso } from './format'
 import { loadData, parseBackup, saveData } from './storage'
-import type { AppData, CalendarMode, Expense, Member, Payment, Settings } from './types'
+import type { AppData, CalendarMode, Expense, Member, Payment, Role, Settings } from './types'
 
 type StoreValue = {
   data: AppData
   calendar: CalendarMode
+  role: Role | null
+  canEdit: boolean
+  pinReady: boolean
+  guestEnabled: boolean
+  backups: BackupMeta[]
   balance: number
   collected: number
   spent: number
@@ -27,6 +51,15 @@ type StoreValue = {
   deleteExpense: (id: string) => void
   replaceAll: (next: AppData) => void
   importFromText: (text: string) => void
+  setupPin: (pin: string) => Promise<void>
+  loginAdmin: (pin: string) => Promise<boolean>
+  loginGuest: () => void
+  setGuestEnabled: (enabled: boolean) => void
+  logout: () => void
+  changePin: (current: string, next: string) => Promise<boolean>
+  refreshBackups: () => Promise<void>
+  snapshotNow: () => Promise<void>
+  restoreBackup: (id: string) => Promise<void>
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
@@ -42,47 +75,170 @@ function totals(data: AppData) {
   return { collected, spent, balance }
 }
 
+function initialRole(): Role | null {
+  if (!hasPin()) return null
+  const session = loadSession()
+  if (session === 'guest' && !isGuestLoginEnabled()) {
+    clearSession()
+    return null
+  }
+  return session
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(() => loadData())
+  const [role, setRole] = useState<Role | null>(initialRole)
+  const [pinReady, setPinReady] = useState(() => hasPin())
+  const [guestEnabled, setGuestEnabledState] = useState(() => isGuestLoginEnabled())
+  const [guestCalendar, setGuestCalendar] = useState<CalendarMode | null>(null)
+  const [backups, setBackups] = useState<BackupMeta[]>([])
+  const skipBackup = useRef(true)
 
   useEffect(() => {
     saveData(data)
   }, [data])
 
-  const updateSettings = useCallback((patch: Partial<Settings>) => {
-    setData((prev) => ({
-      ...prev,
-      settings: { ...prev.settings, ...patch },
-    }))
+  useEffect(() => {
+    void ensureInitialBackup(data)
+    void listBackups()
+      .then(setBackups)
+      .catch(() => setBackups([]))
+    // Snapshot existing data once after install/update; later edits are debounced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const setCalendar = useCallback((calendar: CalendarMode) => {
-    setData((prev) => ({
-      ...prev,
-      settings: { ...prev.settings, calendar },
-    }))
-  }, [])
-
-  const addMember = useCallback((name: string, phone: string, joinedAt: string) => {
-    const member: Member = {
-      id: newId(),
-      name: name.trim(),
-      phone: phone.trim(),
-      createdAt: joinedAt || todayIso(),
+  useEffect(() => {
+    if (skipBackup.current) {
+      skipBackup.current = false
+      return
     }
-    setData((prev) => ({ ...prev, members: [...prev.members, member] }))
+    enqueueAutoBackup(data)
+  }, [data])
+
+  const refreshBackups = useCallback(async () => {
+    try {
+      setBackups(await listBackups())
+    } catch {
+      setBackups([])
+    }
   }, [])
 
-  const deleteMember = useCallback((id: string) => {
-    setData((prev) => ({
-      ...prev,
-      members: prev.members.filter((member) => member.id !== id),
-      payments: prev.payments.filter((payment) => payment.memberId !== id),
-    }))
+  const setupPin = useCallback(async (pin: string) => {
+    await writePin(pin)
+    setPinReady(true)
+    saveSession('admin')
+    setRole('admin')
   }, [])
+
+  const loginAdmin = useCallback(async (pin: string) => {
+    const ok = await verifyPin(pin)
+    if (!ok) return false
+    saveSession('admin')
+    setRole('admin')
+    setGuestCalendar(null)
+    return true
+  }, [])
+
+  const loginGuest = useCallback(() => {
+    if (!hasPin() || !guestEnabled) return
+    saveSession('guest')
+    setRole('guest')
+    setGuestCalendar(null)
+  }, [guestEnabled])
+
+  const setGuestEnabled = useCallback(
+    (enabled: boolean) => {
+      if (role !== 'admin') return
+      writeGuestLoginEnabled(enabled)
+      setGuestEnabledState(enabled)
+    },
+    [role],
+  )
+
+  const logout = useCallback(() => {
+    clearSession()
+    setRole(null)
+    setGuestCalendar(null)
+  }, [])
+
+  const changePin = useCallback(async (current: string, next: string) => {
+    const ok = await verifyPin(current)
+    if (!ok) return false
+    await writePin(next)
+    return true
+  }, [])
+
+  const snapshotNow = useCallback(async () => {
+    if (role !== 'admin') return
+    await saveBackupNow(data)
+    await refreshBackups()
+  }, [data, refreshBackups, role])
+
+  const restoreBackup = useCallback(
+    async (id: string) => {
+      if (role !== 'admin') return
+      const next = await getBackupData(id)
+      if (!next) throw new Error('النسخة غير موجودة')
+      setData(parseBackup(JSON.stringify(next)))
+      await refreshBackups()
+    },
+    [refreshBackups, role],
+  )
+
+  const updateSettings = useCallback(
+    (patch: Partial<Settings>) => {
+      if (role !== 'admin') return
+      setData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, ...patch },
+      }))
+    },
+    [role],
+  )
+
+  const setCalendar = useCallback(
+    (calendar: CalendarMode) => {
+      if (role !== 'admin') {
+        setGuestCalendar(calendar)
+        return
+      }
+      setData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, calendar },
+      }))
+    },
+    [role],
+  )
+
+  const addMember = useCallback(
+    (name: string, phone: string, joinedAt: string) => {
+      if (role !== 'admin') return
+      const member: Member = {
+        id: newId(),
+        name: name.trim(),
+        phone: phone.trim(),
+        createdAt: joinedAt || todayIso(),
+      }
+      setData((prev) => ({ ...prev, members: [...prev.members, member] }))
+    },
+    [role],
+  )
+
+  const deleteMember = useCallback(
+    (id: string) => {
+      if (role !== 'admin') return
+      setData((prev) => ({
+        ...prev,
+        members: prev.members.filter((member) => member.id !== id),
+        payments: prev.payments.filter((payment) => payment.memberId !== id),
+      }))
+    },
+    [role],
+  )
 
   const setPayment = useCallback(
     (memberId: string, year: number, month: number, date: string, amount: number) => {
+      if (role !== 'admin') return
       setData((prev) => {
         const others = prev.payments.filter(
           (payment) =>
@@ -112,53 +268,85 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ...prev, payments: [...others, payment] }
       })
     },
-    [],
+    [role],
   )
 
-  const unmarkPaid = useCallback((memberId: string, year: number, month: number) => {
-    setData((prev) => ({
-      ...prev,
-      payments: prev.payments.filter(
-        (payment) =>
-          !(
-            payment.memberId === memberId &&
-            payment.year === year &&
-            payment.month === month
-          ),
-      ),
-    }))
-  }, [])
+  const unmarkPaid = useCallback(
+    (memberId: string, year: number, month: number) => {
+      if (role !== 'admin') return
+      setData((prev) => ({
+        ...prev,
+        payments: prev.payments.filter(
+          (payment) =>
+            !(
+              payment.memberId === memberId &&
+              payment.year === year &&
+              payment.month === month
+            ),
+        ),
+      }))
+    },
+    [role],
+  )
 
-  const addExpense = useCallback((title: string, amount: number, date: string) => {
-    const expense: Expense = {
-      id: newId(),
-      title: title.trim(),
-      amount,
-      date,
-    }
-    setData((prev) => ({ ...prev, expenses: [expense, ...prev.expenses] }))
-  }, [])
+  const addExpense = useCallback(
+    (title: string, amount: number, date: string) => {
+      if (role !== 'admin') return
+      const expense: Expense = {
+        id: newId(),
+        title: title.trim(),
+        amount,
+        date,
+      }
+      setData((prev) => ({ ...prev, expenses: [expense, ...prev.expenses] }))
+    },
+    [role],
+  )
 
-  const deleteExpense = useCallback((id: string) => {
-    setData((prev) => ({
-      ...prev,
-      expenses: prev.expenses.filter((expense) => expense.id !== id),
-    }))
-  }, [])
+  const deleteExpense = useCallback(
+    (id: string) => {
+      if (role !== 'admin') return
+      setData((prev) => ({
+        ...prev,
+        expenses: prev.expenses.filter((expense) => expense.id !== id),
+      }))
+    },
+    [role],
+  )
 
-  const replaceAll = useCallback((next: AppData) => {
-    setData(next)
-  }, [])
+  const replaceAll = useCallback(
+    (next: AppData) => {
+      if (role !== 'admin') return
+      setData(next)
+    },
+    [role],
+  )
 
-  const importFromText = useCallback((text: string) => {
-    setData(parseBackup(text))
-  }, [])
+  const importFromText = useCallback(
+    (text: string) => {
+      if (role !== 'admin') return
+      setData(parseBackup(text))
+    },
+    [role],
+  )
 
   const value = useMemo(() => {
     const { collected, spent, balance } = totals(data)
+    const canEdit = role === 'admin'
+    const calendar: CalendarMode =
+      role === 'guest' && guestCalendar
+        ? guestCalendar
+        : data.settings.calendar === 'hijri'
+          ? 'hijri'
+          : 'gregorian'
     return {
       data,
-      calendar: (data.settings.calendar === 'hijri' ? 'hijri' : 'gregorian') as CalendarMode,
+      calendar,
+      role,
+      canEdit,
+      pinReady,
+      guestEnabled,
+      backups,
       balance,
       collected,
       spent,
@@ -172,19 +360,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteExpense,
       replaceAll,
       importFromText,
+      setupPin,
+      loginAdmin,
+      loginGuest,
+      setGuestEnabled,
+      logout,
+      changePin,
+      refreshBackups,
+      snapshotNow,
+      restoreBackup,
     }
   }, [
-    data,
-    updateSettings,
-    setCalendar,
-    addMember,
-    deleteMember,
-    setPayment,
-    unmarkPaid,
     addExpense,
+    addMember,
+    backups,
+    changePin,
+    data,
     deleteExpense,
-    replaceAll,
+    deleteMember,
+    guestCalendar,
+    guestEnabled,
     importFromText,
+    loginAdmin,
+    loginGuest,
+    logout,
+    setGuestEnabled,
+    pinReady,
+    refreshBackups,
+    replaceAll,
+    restoreBackup,
+    role,
+    setCalendar,
+    setPayment,
+    setupPin,
+    snapshotNow,
+    unmarkPaid,
+    updateSettings,
   ])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

@@ -18,6 +18,17 @@ export function formatMoney(amount: number, currency: string): string {
   return `${formatted} ${currencySymbol(currency)}`
 }
 
+export function formatDateTime(ms: number): string {
+  try {
+    return new Intl.DateTimeFormat('ar-SA', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(ms))
+  } catch {
+    return new Date(ms).toLocaleString('ar')
+  }
+}
+
 export function parseIsoDate(isoDate: string): Date | null {
   const [year, month, day] = isoDate.split('-').map(Number)
   if (!year || !month || !day) return null

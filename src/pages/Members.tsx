@@ -16,8 +16,8 @@ import type { Member } from '../types'
 const OPEN_ADD_KEY = 'jamia-open-add-member'
 
 export function MembersPage() {
-  const { data, addMember, deleteMember, calendar } = useStore()
-  const [open, setOpen] = useState(shouldOpenAddMember)
+  const { data, addMember, deleteMember, calendar, canEdit } = useStore()
+  const [open, setOpen] = useState(() => canEdit && shouldOpenAddMember())
   const [viewing, setViewing] = useState<Member | null>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -104,13 +104,15 @@ export function MembersPage() {
         </div>
       </header>
 
-      <button type="button" className="btn add-wide" onClick={() => setOpen(true)}>
-        إضافة عضو
-      </button>
+      {canEdit ? (
+        <button type="button" className="btn add-wide" onClick={() => setOpen(true)}>
+          إضافة عضو
+        </button>
+      ) : null}
 
       {data.members.length === 0 ? (
         <section className="card empty">
-          <p>لا يوجد أعضاء بعد. اضغط «إضافة عضو» بالأعلى.</p>
+          <p>{canEdit ? 'لا يوجد أعضاء بعد. اضغط «إضافة عضو» بالأعلى.' : 'لا يوجد أعضاء بعد.'}</p>
         </section>
       ) : (
         <>
@@ -137,17 +139,19 @@ export function MembersPage() {
                       {status === 'full' ? 'سدد هذا الشهر' : status === 'partial' ? 'مدفوع جزئياً' : 'لم يسدد هذا الشهر'}
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    className="text-danger"
-                    onClick={() => {
-                      if (confirm(`حذف ${member.name}؟ تُحذف دفعاته أيضاً.`)) {
-                        deleteMember(member.id)
-                      }
-                    }}
-                  >
-                    حذف
-                  </button>
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      className="text-danger"
+                      onClick={() => {
+                        if (confirm(`حذف ${member.name}؟ تُحذف دفعاته أيضاً.`)) {
+                          deleteMember(member.id)
+                        }
+                      }}
+                    >
+                      حذف
+                    </button>
+                  ) : null}
                 </li>
               )
             })}
@@ -155,7 +159,7 @@ export function MembersPage() {
         </>
       )}
 
-      {open && (
+      {open && canEdit && (
         <Modal title="عضو جديد" onClose={() => setOpen(false)}>
           <ModalForm onSubmit={submit}>
             <label>

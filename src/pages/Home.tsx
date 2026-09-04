@@ -10,7 +10,7 @@ type Props = {
 }
 
 export function HomePage({ onNavigate }: Props) {
-  const { data, balance, collected, spent, calendar, addExpense } = useStore()
+  const { data, balance, collected, spent, calendar, addExpense, canEdit } = useStore()
   const summary = thisMonthSummary(data)
   const monthLabel = formatMonthBoth(summary.year, summary.month)
   const [expenseOpen, setExpenseOpen] = useState(false)
@@ -60,11 +60,13 @@ export function HomePage({ onNavigate }: Props) {
       </section>
 
       <div className="quick-grid">
-        <button type="button" className="quick" onClick={() => setExpenseOpen(true)}>
-          إضافة مصروف
-        </button>
+        {canEdit ? (
+          <button type="button" className="quick" onClick={() => setExpenseOpen(true)}>
+            إضافة مصروف
+          </button>
+        ) : null}
         <button type="button" className="quick ghost" onClick={() => onNavigate('payments')}>
-          تسجيل دفعة
+          {canEdit ? 'تسجيل دفعة' : 'الاشتراكات'}
         </button>
         <button type="button" className="quick ghost" onClick={() => onNavigate('members')}>
           الأعضاء
@@ -74,7 +76,7 @@ export function HomePage({ onNavigate }: Props) {
         </button>
       </div>
 
-      {data.members.length === 0 && (
+      {data.members.length === 0 && canEdit && (
         <section className="card hint">
           <h2>ابدأ من هنا</h2>
           <p>أضف أسماء أفراد الجمعية، ثم حدد المبلغ الشهري من الإعدادات.</p>
@@ -95,7 +97,7 @@ export function HomePage({ onNavigate }: Props) {
         </section>
       )}
 
-      {expenseOpen && (
+      {expenseOpen && canEdit && (
         <Modal title="مصروف جديد" onClose={() => setExpenseOpen(false)}>
           <ModalForm onSubmit={submitExpense}>
             <label>
