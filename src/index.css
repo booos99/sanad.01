@@ -611,38 +611,99 @@ select {
 }
 
 .login {
+  --login-pad: 22px;
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: 12px;
-  padding: calc(28px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom));
+  gap: 18px;
+  padding: calc(28px + env(safe-area-inset-top)) var(--login-pad) calc(28px + env(safe-area-inset-bottom));
   text-align: center;
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(31, 111, 98, 0.18), transparent 58%),
+    radial-gradient(90% 50% at 100% 100%, rgba(196, 163, 90, 0.16), transparent 55%),
+    linear-gradient(180deg, #e7efe9 0%, var(--bg) 42%, #e4ebe5 100%);
 }
 
-.login-mark {
-  width: 72px;
-  height: 72px;
+.login-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 8% 12% auto;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 253, 248, 0.7), transparent 70%);
+  filter: blur(8px);
+  animation: login-glow 4.5s ease-in-out infinite alternate;
 }
 
-.login-kicker {
-  margin: 8px 0 0;
-  color: var(--teal);
-  font-weight: 800;
-  font-size: 0.85rem;
+.login-brand,
+.login-panel,
+.login-hint {
+  position: relative;
+  z-index: 1;
+  animation: login-rise 0.55s ease both;
 }
 
-.login h1 {
-  margin: 0 0 8px;
-  font-size: 1.7rem;
+.login-panel {
+  animation-delay: 0.08s;
 }
 
 .login-hint {
+  animation-delay: 0.16s;
+}
+
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-mark {
+  width: 88px;
+  height: 88px;
+  filter: drop-shadow(0 12px 24px rgba(22, 79, 70, 0.22));
+  animation: login-mark 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.login-mark svg {
   width: 100%;
-  text-align: right;
+  height: 100%;
+  display: block;
+}
+
+.login-kicker {
+  margin: 10px 0 0;
+  color: var(--teal);
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+}
+
+.login h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 2.05rem);
+  line-height: 1.25;
+  color: var(--teal-dark);
+}
+
+.login-sub {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.login-panel {
+  width: 100%;
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow);
+  padding: 18px 16px 16px;
 }
 
 .login-form {
@@ -657,6 +718,11 @@ select {
   margin: 0;
 }
 
+.login-guest-off {
+  text-align: center;
+  font-size: 0.88rem;
+}
+
 .login-actions {
   display: flex;
   flex-direction: column;
@@ -666,8 +732,111 @@ select {
 .pin-input {
   text-align: center;
   letter-spacing: 0.35em;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
+  background: #f4f8f5;
+  border-color: color-mix(in srgb, var(--teal) 28%, var(--line));
+}
+
+.pin-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--teal) 45%, transparent);
+  outline-offset: 1px;
+  border-color: var(--teal);
+  background: #fff;
+}
+
+.login-hint {
+  width: 100%;
+  text-align: right;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  padding: 0 14px;
+}
+
+.login-hint summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 800;
+  color: var(--teal-dark);
+  padding: 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.login-hint summary::-webkit-details-marker {
+  display: none;
+}
+
+.login-hint summary::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--teal);
+  border-bottom: 2px solid var(--teal);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.login-hint[open] summary::after {
+  transform: rotate(-135deg);
+}
+
+.login-hint ol {
+  margin: 0 0 14px;
+  padding-inline-start: 1.2rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.login-hint li + li {
+  margin-top: 6px;
+}
+
+@keyframes login-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes login-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.86) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes login-glow {
+  from {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-glow,
+  .login-brand,
+  .login-panel,
+  .login-hint,
+  .login-mark {
+    animation: none;
+  }
 }
 
 .backup-list {
