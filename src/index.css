@@ -195,11 +195,11 @@ select {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  animation: fade-up 0.4s var(--ease-out) both;
+  animation: fade-up 0.48s var(--ease-out) both;
 }
 
 .page > * {
-  animation: fade-up 0.45s var(--ease-out) both;
+  animation: fade-up 0.55s var(--ease-out) both;
 }
 
 .page > *:nth-child(1) { animation-delay: 0.02s; }
@@ -630,7 +630,7 @@ select:focus {
   grid-template-columns: repeat(5, 1fr);
   background: color-mix(in srgb, var(--paper) 92%, #f5f8fb);
   border-top: 1px solid var(--line);
-  padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+  padding: 10px 4px calc(12px + env(safe-area-inset-bottom));
   backdrop-filter: blur(10px);
 }
 
@@ -641,10 +641,10 @@ select:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 6px 0;
+  padding: 8px 0;
   transition: color 0.2s ease, transform 0.18s var(--ease-out);
 }
 
@@ -1123,7 +1123,7 @@ select:disabled {
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(18px);
   }
   to {
     opacity: 1;
