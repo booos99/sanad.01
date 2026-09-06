@@ -1,18 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg: #eef2f6;
-  --paper: #ffffff;
-  --ink: #12202a;
-  --muted: #5a6b78;
-  --line: #d5dee8;
-  --teal: #0c7c74;
-  --teal-dark: #075851;
-  --gold: #c9922e;
-  --danger: #c4332b;
-  --ok: #0d8a58;
-  --shadow: 0 10px 28px rgba(7, 88, 81, 0.1);
-  --shadow-lg: 0 18px 40px rgba(18, 32, 42, 0.12);
+  --navy: #0c2c55;
+  --sea: #296374;
+  --mist: #629fad;
+  --cream: #ededce;
+  --bg: #ededce;
+  --paper: #f7f7e8;
+  --ink: #0c2c55;
+  --muted: #3d6474;
+  --line: #c5d6d8;
+  --teal: #296374;
+  --teal-dark: #0c2c55;
+  --accent: #629fad;
+  --gold: #629fad;
+  --danger: #b33a3a;
+  --ok: #1f6b5a;
+  --on-dark: #ededce;
+  --shadow: 0 10px 28px rgba(12, 44, 85, 0.12);
+  --shadow-lg: 0 18px 40px rgba(12, 44, 85, 0.16);
   --radius: 20px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.35, 0.64, 1);
@@ -36,9 +42,9 @@ body,
 
 body {
   background:
-    radial-gradient(120% 80% at 100% 0%, rgba(12, 124, 116, 0.12), transparent 55%),
-    radial-gradient(90% 60% at 0% 100%, rgba(201, 146, 46, 0.1), transparent 50%),
-    #d9e2ea;
+    radial-gradient(120% 80% at 100% 0%, rgba(41, 99, 116, 0.22), transparent 55%),
+    radial-gradient(90% 60% at 0% 100%, rgba(98, 159, 173, 0.28), transparent 50%),
+    #d8e0c8;
   overscroll-behavior: none;
   touch-action: manipulation;
 }
@@ -73,7 +79,7 @@ select {
   height: 100dvh;
   margin: 0 auto;
   background:
-    linear-gradient(180deg, #f5f8fb 0%, var(--bg) 38%, #e9eef4 100%);
+    linear-gradient(180deg, #f3f3e4 0%, var(--bg) 38%, #e4e8d4 100%);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -82,11 +88,11 @@ select {
 
 .topbar {
   flex-shrink: 0;
-  background: linear-gradient(135deg, #0a6f68 0%, #075851 48%, #0a4f5c 100%);
-  color: #f4fffc;
+  background: linear-gradient(135deg, #0c2c55 0%, #1a4668 48%, #296374 100%);
+  color: var(--on-dark);
   padding: calc(10px + env(safe-area-inset-top)) 16px 12px;
   z-index: 8;
-  box-shadow: 0 10px 28px rgba(7, 88, 81, 0.22);
+  box-shadow: 0 10px 28px rgba(12, 44, 85, 0.28);
   animation: bar-in 0.45s var(--ease-out) both;
 }
 
@@ -126,7 +132,7 @@ select {
 .topbar-logout {
   border: 0;
   background: rgba(255, 255, 255, 0.14);
-  color: #f4fffc;
+  color: var(--on-dark);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 0.75rem;
@@ -146,8 +152,8 @@ select {
   margin: 8px 0 0;
   font-size: 0.8rem;
   font-weight: 700;
-  background: color-mix(in srgb, var(--gold) 28%, transparent);
-  color: #ffe9b8;
+  background: color-mix(in srgb, var(--mist) 35%, transparent);
+  color: var(--cream);
   padding: 7px 10px;
   border-radius: 10px;
   animation: fade-up 0.4s var(--ease-out) both;
@@ -164,7 +170,7 @@ select {
 .cal-switch button {
   border: 0;
   background: transparent;
-  color: #d4efe9;
+  color: #c9dde3;
   border-radius: 999px;
   padding: 8px 12px;
   font-size: 0.82rem;
@@ -177,8 +183,8 @@ select {
 }
 
 .cal-switch button.on {
-  background: #ffffff;
-  color: var(--teal-dark);
+  background: var(--cream);
+  color: var(--navy);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
@@ -234,9 +240,9 @@ select {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(120% 100% at 100% 0%, rgba(255, 255, 255, 0.16), transparent 45%),
-    linear-gradient(145deg, #129388 0%, #0c7c74 42%, #075851 100%);
-  color: #f4fffc;
+    radial-gradient(120% 100% at 100% 0%, rgba(237, 237, 206, 0.18), transparent 45%),
+    linear-gradient(145deg, #629fad 0%, #296374 45%, #0c2c55 100%);
+  color: var(--on-dark);
   border-radius: 26px;
   padding: 22px 20px 18px;
   box-shadow: var(--shadow-lg);
@@ -271,7 +277,7 @@ select {
 .balance-card.negative {
   background:
     radial-gradient(120% 100% at 100% 0%, rgba(255, 255, 255, 0.12), transparent 45%),
-    linear-gradient(145deg, #d2554b 0%, #b4332b 50%, #8f241e 100%);
+    linear-gradient(145deg, #c45b5b 0%, #b33a3a 50%, #8a2a2a 100%);
 }
 
 .balance-meta {
@@ -329,10 +335,10 @@ select {
   border: 0;
   border-radius: 16px;
   padding: 14px 16px;
-  background: linear-gradient(160deg, #129388 0%, var(--teal) 100%);
+  background: linear-gradient(160deg, #3a7a8c 0%, var(--teal) 100%);
   color: white;
   font-weight: 700;
-  box-shadow: 0 8px 18px rgba(12, 124, 116, 0.22);
+  box-shadow: 0 8px 18px rgba(41, 99, 116, 0.22);
 }
 
 .quick.ghost,
@@ -358,7 +364,7 @@ select {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(160deg, #1aa38f 0%, #128c7e 100%);
+  background: linear-gradient(160deg, #4f8fa0 0%, #296374 100%);
 }
 
 .btn-icon {
@@ -451,22 +457,22 @@ select {
 }
 
 .pill.ok {
-  background: #e5f7ee;
+  background: #d9ebe4;
   color: var(--ok);
 }
 
 .pill.partial {
-  background: #fff4dd;
-  color: #9a6414;
+  background: #e8efc8;
+  color: #5a5a2e;
 }
 
 .pill.wait {
-  background: #fdeceb;
+  background: #f0e0d8;
   color: #8a3a32;
 }
 
 .remain {
-  color: #9a6414;
+  color: #5a5a2e;
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -591,7 +597,7 @@ select:focus {
 }
 
 .date-field .dual-date {
-  background: #e6f5f3;
+  background: #d9e8ea;
   border-radius: 12px;
   padding: 10px 12px;
   margin-top: 2px;
@@ -599,8 +605,8 @@ select:focus {
 
 .banner {
   margin: 0;
-  background: #fff4dd;
-  color: #9a6414;
+  background: #e8efc8;
+  color: #5a5a2e;
   padding: 12px 14px;
   border-radius: 12px;
 }
@@ -628,7 +634,7 @@ select:focus {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  background: color-mix(in srgb, var(--paper) 92%, #f5f8fb);
+  background: color-mix(in srgb, var(--paper) 88%, var(--cream));
   border-top: 1px solid var(--line);
   padding: 10px 4px calc(12px + env(safe-area-inset-bottom));
   backdrop-filter: blur(10px);
@@ -730,9 +736,9 @@ select:focus {
   padding: calc(28px + env(safe-area-inset-top)) var(--login-pad) calc(28px + env(safe-area-inset-bottom));
   text-align: center;
   background:
-    radial-gradient(120% 70% at 50% -10%, rgba(12, 124, 116, 0.2), transparent 58%),
-    radial-gradient(90% 50% at 100% 100%, rgba(201, 146, 46, 0.14), transparent 55%),
-    linear-gradient(180deg, #e8f1f4 0%, var(--bg) 42%, #e4ebf1 100%);
+    radial-gradient(120% 70% at 50% -10%, rgba(41, 99, 116, 0.2), transparent 58%),
+    radial-gradient(90% 50% at 100% 100%, rgba(98, 159, 173, 0.14), transparent 55%),
+    linear-gradient(180deg, #e4ebe0 0%, var(--bg) 42%, #e0e6d2 100%);
 }
 
 .login-glow {
@@ -772,7 +778,7 @@ select:focus {
 .login-mark {
   width: 88px;
   height: 88px;
-  filter: drop-shadow(0 14px 28px rgba(7, 88, 81, 0.28));
+  filter: drop-shadow(0 14px 28px rgba(12, 44, 85, 0.28));
   animation: login-mark 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -840,7 +846,7 @@ select:focus {
   letter-spacing: 0.35em;
   font-size: 1.35rem;
   font-weight: 800;
-  background: #e6f5f3;
+  background: #d9e8ea;
   border-color: color-mix(in srgb, var(--teal) 28%, var(--line));
 }
 
@@ -977,7 +983,7 @@ select:focus {
 
 input:disabled,
 select:disabled {
-  background: #e8eef3;
+  background: #e4e8d8;
   color: var(--muted);
 }
 
