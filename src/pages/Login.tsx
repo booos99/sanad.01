@@ -55,21 +55,21 @@ export function LoginPage() {
           <svg width="88" height="88" viewBox="0 0 180 180">
             <defs>
               <linearGradient id="loginMarkGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#129388" />
-                <stop offset="100%" stopColor="#075851" />
+                <stop offset="0%" stopColor="#629FAD" />
+                <stop offset="100%" stopColor="#0C2C55" />
               </linearGradient>
             </defs>
             <rect width="180" height="180" rx="40" fill="url(#loginMarkGrad)" />
-            <rect x="38" y="58" width="104" height="74" rx="16" fill="#ffffff" />
+            <rect x="38" y="58" width="104" height="74" rx="16" fill="#EDEDCE" />
             <path
               d="M54 58c0-18 16-32 36-32s36 14 36 32"
               fill="none"
-              stroke="#c9922e"
+              stroke="#629FAD"
               strokeWidth="10"
               strokeLinecap="round"
             />
-            <circle cx="90" cy="95" r="14" fill="#0c7c74" />
-            <path d="M84 95h12M90 89v12" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" />
+            <circle cx="90" cy="95" r="14" fill="#296374" />
+            <path d="M84 95h12M90 89v12" stroke="#EDEDCE" strokeWidth="4" strokeLinecap="round" />
           </svg>
         </div>
         <p className="login-kicker">صندوق عائلي</p>
