@@ -45,7 +45,14 @@ type StoreValue = {
   setCalendar: (calendar: CalendarMode) => void
   addMember: (name: string, phone: string, joinedAt: string) => void
   deleteMember: (id: string) => void
-  setPayment: (memberId: string, year: number, month: number, date: string, amount: number) => void
+  setPayment: (
+    memberId: string,
+    year: number,
+    month: number,
+    date: string,
+    amount: number,
+    extraAmount?: number,
+  ) => void
   unmarkPaid: (memberId: string, year: number, month: number) => void
   addExpense: (title: string, amount: number, date: string) => void
   deleteExpense: (id: string) => void
@@ -69,10 +76,17 @@ function roundMoney(value: number): number {
 }
 
 function totals(data: AppData) {
-  const collected = roundMoney(data.payments.reduce((sum, item) => sum + item.amount, 0))
+  const collected = roundMoney(
+    data.payments.reduce((sum, item) => sum + paymentReceived(item), 0),
+  )
   const spent = roundMoney(data.expenses.reduce((sum, item) => sum + item.amount, 0))
   const balance = roundMoney(data.settings.openingBalance + collected - spent)
   return { collected, spent, balance }
+}
+
+/** Subscription amount plus any optional extra for one payment. */
+export function paymentReceived(payment: Pick<Payment, 'amount' | 'extraAmount'>): number {
+  return roundMoney(payment.amount + Math.max(0, payment.extraAmount || 0))
 }
 
 function initialRole(): Role | null {
@@ -237,7 +251,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const setPayment = useCallback(
-    (memberId: string, year: number, month: number, date: string, amount: number) => {
+    (
+      memberId: string,
+      year: number,
+      month: number,
+      date: string,
+      amount: number,
+      extraAmount = 0,
+    ) => {
       if (role !== 'admin') return
       setData((prev) => {
         const others = prev.payments.filter(
@@ -251,6 +272,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!Number.isFinite(amount) || amount <= 0) {
           return { ...prev, payments: others }
         }
+        const extra = Number.isFinite(extraAmount) ? Math.max(0, roundMoney(extraAmount)) : 0
         const existing = prev.payments.find(
           (payment) =>
             payment.memberId === memberId &&
@@ -262,7 +284,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           memberId,
           year,
           month,
-          amount,
+          amount: roundMoney(amount),
+          extraAmount: extra,
           date,
         }
         return { ...prev, payments: [...others, payment] }
@@ -409,7 +432,7 @@ export function useStore(): StoreValue {
 
 export function memberPaidTotal(data: AppData, memberId: string): number {
   return roundMoney(
-    memberPayments(data, memberId).reduce((sum, payment) => sum + payment.amount, 0),
+    memberPayments(data, memberId).reduce((sum, payment) => sum + paymentReceived(payment), 0),
   )
 }
 
@@ -444,7 +467,7 @@ export function thisMonthSummary(data: AppData) {
     month,
     paidCount,
     memberCount: data.members.length,
-    collected: roundMoney(payments.reduce((sum, item) => sum + item.amount, 0)),
+    collected: roundMoney(payments.reduce((sum, item) => sum + paymentReceived(item), 0)),
     spent: roundMoney(expenses.reduce((sum, item) => sum + item.amount, 0)),
   }
 }

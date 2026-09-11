@@ -3,7 +3,7 @@ import { DateField } from '../DateField'
 import { DualDate } from '../DualDate'
 import { currentYearMonth, formatMoney, formatMonthBoth, todayIso } from '../format'
 import { Modal, ModalForm } from '../Modal'
-import { monthPayments, paymentStatus, remainingOf, useStore } from '../store'
+import { monthPayments, paymentReceived, paymentStatus, remainingOf, useStore } from '../store'
 import { MONTHS_AR, type AppData, type Member } from '../types'
 
 export function PaymentsPage() {
@@ -19,12 +19,14 @@ export function PaymentsPage() {
   const monthLabel = formatMonthBoth(year, month)
   const [editing, setEditing] = useState<Member | null>(null)
   const [amount, setAmount] = useState('')
+  const [extraAmount, setExtraAmount] = useState('')
   const [paidOn, setPaidOn] = useState(todayIso())
 
   function openEditor(member: Member) {
     const payment = byMember.get(member.id)
     setEditing(member)
     setAmount(String(payment?.amount ?? due))
+    setExtraAmount(payment && payment.extraAmount > 0 ? String(payment.extraAmount) : '')
     setPaidOn(payment?.date ?? todayIso())
   }
 
@@ -32,10 +34,19 @@ export function PaymentsPage() {
     event.preventDefault()
     if (!editing) return
     const value = Number(amount)
+    const extra = extraAmount.trim() === '' ? 0 : Number(extraAmount)
     if (!Number.isFinite(value) || value < 0) return
-    setPayment(editing.id, year, month, paidOn, value)
+    if (!Number.isFinite(extra) || extra < 0) return
+    setPayment(editing.id, year, month, paidOn, value, extra)
     setEditing(null)
   }
+
+  const previewExtra = extraAmount.trim() === '' ? 0 : Number(extraAmount)
+  const previewAmount = Number(amount)
+  const previewTotal =
+    Number.isFinite(previewAmount) && previewAmount >= 0
+      ? previewAmount + (Number.isFinite(previewExtra) && previewExtra > 0 ? previewExtra : 0)
+      : null
 
   return (
     <div className="page">
@@ -70,7 +81,7 @@ export function PaymentsPage() {
 
       {due <= 0 && canEdit && <p className="banner">حدد المبلغ الشهري من الإعدادات قبل تسجيل الدفعات.</p>}
       {due > 0 && canEdit ? (
-        <p className="hint-tap">اضغط العضو لتسجيل المبلغ وتحديد يوم وشهر وسنة الدفع.</p>
+        <p className="hint-tap">اضغط العضو لتسجيل مبلغ الاشتراك وأي مبلغ إضافي وتحديد تاريخ الدفع.</p>
       ) : null}
 
       {data.members.length === 0 ? (
@@ -82,6 +93,8 @@ export function PaymentsPage() {
           {data.members.map((member) => {
             const payment = byMember.get(member.id)
             const paid = payment?.amount ?? 0
+            const extra = payment?.extraAmount ?? 0
+            const received = payment ? paymentReceived(payment) : 0
             const remaining = remainingOf(paid, due)
             const status = paymentStatus(paid, due)
             return (
@@ -96,7 +109,13 @@ export function PaymentsPage() {
                   <span className="muted">المستحق {formatMoney(due, currency)}</span>
                   {paid > 0 ? (
                     <>
-                      <span className="paid-total">دُفع {formatMoney(paid, currency)}</span>
+                      <span className="paid-total">الاشتراك {formatMoney(paid, currency)}</span>
+                      {extra > 0 ? (
+                        <span className="extra-amount">إضافي {formatMoney(extra, currency)}</span>
+                      ) : null}
+                      {extra > 0 ? (
+                        <span className="paid-total">الإجمالي {formatMoney(received, currency)}</span>
+                      ) : null}
                       <span className={remaining > 0 ? 'remain' : 'muted'}>
                         المتبقي {formatMoney(remaining, currency)}
                       </span>
@@ -145,7 +164,7 @@ export function PaymentsPage() {
             <p className="muted">المستحق {formatMoney(due, currency)}</p>
             <DateField label="تاريخ الدفع" value={paidOn} onChange={setPaidOn} />
             <label>
-              المبلغ المدفوع
+              مبلغ الاشتراك
               <input
                 type="number"
                 inputMode="decimal"
@@ -156,6 +175,23 @@ export function PaymentsPage() {
                 required
               />
             </label>
+            <label>
+              مبلغ إضافي (اختياري)
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={extraAmount}
+                onChange={(e) => setExtraAmount(e.target.value)}
+                placeholder="0"
+              />
+            </label>
+            {previewTotal !== null && Number.isFinite(previewExtra) && previewExtra > 0 ? (
+              <p className="muted">
+                الإجمالي المستلم {formatMoney(previewTotal, currency)}
+              </p>
+            ) : null}
             <button type="submit" className="btn">
               حفظ الدفعة
             </button>

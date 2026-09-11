@@ -23,6 +23,8 @@ export type Payment = {
   year: number
   month: number
   amount: number
+  /** Optional amount beyond the monthly subscription for this payment. */
+  extraAmount: number
   date: string
 }
 

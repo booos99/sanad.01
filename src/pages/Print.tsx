@@ -14,6 +14,8 @@ type PaymentRow = {
   month: number
   due: number
   paid: number
+  extra: number
+  received: number
   remaining: number
   status: 'none' | 'partial' | 'full'
   date: string
@@ -55,6 +57,7 @@ export function PrintPage({ onNavigate }: Props) {
           (row) => row.memberId === member.id && row.year === item.year && row.month === item.month,
         )
         const paid = payment?.amount ?? 0
+        const extra = payment?.extraAmount ?? 0
         return {
           memberId: member.id,
           member: member.name,
@@ -62,6 +65,8 @@ export function PrintPage({ onNavigate }: Props) {
           month: item.month,
           due,
           paid,
+          extra,
+          received: paid + extra,
           remaining: remainingOf(paid, due),
           status: paymentStatus(paid, due),
           date: payment?.date ?? '',
@@ -260,7 +265,7 @@ export function PrintPage({ onNavigate }: Props) {
               <>
                 {data.members.map((member) => {
                   const rows = paymentRows.filter((row) => row.memberId === member.id)
-                  const paidSum = rows.reduce((sum, row) => sum + row.paid, 0)
+                  const receivedSum = rows.reduce((sum, row) => sum + row.received, 0)
                   return (
                     <div key={member.id} className="print-member">
                       <h3>{member.name}</h3>
@@ -269,7 +274,9 @@ export function PrintPage({ onNavigate }: Props) {
                           <tr>
                             <th>الشهر</th>
                             <th>المستحق</th>
-                            <th>المدفوع</th>
+                            <th>الاشتراك</th>
+                            <th>إضافي</th>
+                            <th>الإجمالي</th>
                             <th>المتبقي</th>
                             <th>الحالة</th>
                             <th>تاريخ الدفع</th>
@@ -283,6 +290,8 @@ export function PrintPage({ onNavigate }: Props) {
                               </td>
                               <td>{formatMoney(row.due, currency)}</td>
                               <td>{formatMoney(row.paid, currency)}</td>
+                              <td>{formatMoney(row.extra, currency)}</td>
+                              <td>{formatMoney(row.received, currency)}</td>
                               <td>{formatMoney(row.remaining, currency)}</td>
                               <td>{statusLabel(row.status)}</td>
                               <td>{row.date ? formatDate(row.date) : '—'}</td>
@@ -293,7 +302,9 @@ export function PrintPage({ onNavigate }: Props) {
                           <tr>
                             <th>المجموع</th>
                             <th>{formatMoney(rows.reduce((sum, row) => sum + row.due, 0), currency)}</th>
-                            <th>{formatMoney(paidSum, currency)}</th>
+                            <th>{formatMoney(rows.reduce((sum, row) => sum + row.paid, 0), currency)}</th>
+                            <th>{formatMoney(rows.reduce((sum, row) => sum + row.extra, 0), currency)}</th>
+                            <th>{formatMoney(receivedSum, currency)}</th>
                             <th>
                               {formatMoney(
                                 rows.reduce((sum, row) => sum + row.remaining, 0),
@@ -331,7 +342,9 @@ export function PrintPage({ onNavigate }: Props) {
                   <tr>
                     <th>العضو</th>
                     <th>المستحق</th>
-                    <th>المدفوع</th>
+                    <th>الاشتراك</th>
+                    <th>إضافي</th>
+                    <th>الإجمالي</th>
                     <th>المتبقي</th>
                     <th>الحالة</th>
                     <th>تاريخ الدفع</th>
@@ -343,6 +356,8 @@ export function PrintPage({ onNavigate }: Props) {
                       <td>{row.member}</td>
                       <td>{formatMoney(row.due, currency)}</td>
                       <td>{formatMoney(row.paid, currency)}</td>
+                      <td>{formatMoney(row.extra, currency)}</td>
+                      <td>{formatMoney(row.received, currency)}</td>
                       <td>{formatMoney(row.remaining, currency)}</td>
                       <td>{statusLabel(row.status)}</td>
                       <td>{row.date ? formatDate(row.date) : '—'}</td>
@@ -354,6 +369,10 @@ export function PrintPage({ onNavigate }: Props) {
                     <th>المجموع</th>
                     <th>{formatMoney(paymentRows.reduce((sum, row) => sum + row.due, 0), currency)}</th>
                     <th>{formatMoney(paymentRows.reduce((sum, row) => sum + row.paid, 0), currency)}</th>
+                    <th>{formatMoney(paymentRows.reduce((sum, row) => sum + row.extra, 0), currency)}</th>
+                    <th>
+                      {formatMoney(paymentRows.reduce((sum, row) => sum + row.received, 0), currency)}
+                    </th>
                     <th>
                       {formatMoney(
                         paymentRows.reduce((sum, row) => sum + row.remaining, 0),
