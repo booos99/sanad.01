@@ -7,6 +7,7 @@ import {
   memberPaidTotal,
   memberPayments,
   monthPayments,
+  paymentReceived,
   paymentStatus,
   remainingOf,
   useStore,
@@ -71,12 +72,20 @@ export function MembersPage() {
               const secondary = calendar === 'hijri' ? monthLabel.gregorian : monthLabel.hijri
               const remaining = remainingOf(payment.amount, due)
               const status = paymentStatus(payment.amount, due)
+              const extra = payment.extraAmount || 0
+              const received = paymentReceived(payment)
               return (
                 <li key={payment.id} className="list-card">
                   <div>
                     <strong>{primary}</strong>
                     {secondary ? <span className="muted">{secondary}</span> : null}
-                    <span className="paid-total">{formatMoney(payment.amount, currency)}</span>
+                    <span className="paid-total">الاشتراك {formatMoney(payment.amount, currency)}</span>
+                    {extra > 0 ? (
+                      <span className="extra-amount">إضافي {formatMoney(extra, currency)}</span>
+                    ) : null}
+                    {extra > 0 ? (
+                      <span className="paid-total">الإجمالي {formatMoney(received, currency)}</span>
+                    ) : null}
                     {remaining > 0 ? (
                       <span className="remain">المتبقي {formatMoney(remaining, currency)}</span>
                     ) : null}

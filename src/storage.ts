@@ -150,6 +150,7 @@ function normalizePayment(value: unknown): Payment | null {
   const year = asYear(row.year)
   const month = asMonth(row.month)
   const amount = asMoney(row.amount)
+  const extraAmount = Math.max(0, asMoney(row.extraAmount))
   const date = asText(row.date)
   if (!memberId || year === null || month === null || amount <= 0) return null
   return {
@@ -158,6 +159,7 @@ function normalizePayment(value: unknown): Payment | null {
     year,
     month,
     amount,
+    extraAmount,
     date: parseIsoDate(date) ? date : todayIso(),
   }
 }

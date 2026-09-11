@@ -563,6 +563,12 @@ select:focus {
   font-size: 0.92rem;
 }
 
+.extra-amount {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
 .date-mode {
   color: var(--teal);
   font-size: 0.78rem;
