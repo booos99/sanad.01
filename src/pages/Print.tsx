@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
+import { DualDate } from '../DualDate'
 import { currentYearMonth, formatDate, formatMoney, formatMonthBoth, parseIsoDate, todayIso } from '../format'
 import { memberPaidTotal, paymentStatus, remainingOf, useStore } from '../store'
-import { MONTHS_AR, type AppData, type Tab } from '../types'
+import { MONTHS_AR, type AppData, type Member, type Tab } from '../types'
 
 type Props = {
   onNavigate: (tab: Tab) => void
@@ -29,12 +30,22 @@ export function PrintPage({ onNavigate }: Props) {
   const [expensesOn, setExpensesOn] = useState(true)
   const [balanceOn, setBalanceOn] = useState(true)
   const [paymentsOn, setPaymentsOn] = useState(true)
+  const [memberDetailOn, setMemberDetailOn] = useState(false)
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [scope, setScope] = useState<'month' | 'all'>('month')
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
   const years = yearOptions(data, now.year)
   const monthTitle = formatMonthBoth(year, month)
-  const selected = expensesOn || balanceOn || paymentsOn
+  const selected = expensesOn || balanceOn || paymentsOn || memberDetailOn
+  const filterActive = selectedMemberIds.length > 0
+  const reportMembers = useMemo(
+    () =>
+      filterActive
+        ? data.members.filter((member) => selectedMemberIds.includes(member.id))
+        : data.members,
+    [data.members, filterActive, selectedMemberIds],
+  )
   const periodLabel =
     scope === 'all'
       ? 'تقرير كل الشهور'
@@ -50,9 +61,10 @@ export function PrintPage({ onNavigate }: Props) {
   }, [data.expenses, month, scope, year])
 
   const paymentRows = useMemo(() => {
-    const months = scope === 'all' ? reportMonths(data) : [{ year, month }]
+    const months = scope === 'all' || memberDetailOn ? reportMonths(data) : [{ year, month }]
+    const members = reportMembers
     return months.flatMap((item) =>
-      data.members.map((member) => {
+      members.map((member) => {
         const payment = data.payments.find(
           (row) => row.memberId === member.id && row.year === item.year && row.month === item.month,
         )
@@ -73,38 +85,72 @@ export function PrintPage({ onNavigate }: Props) {
         } satisfies PaymentRow
       }),
     )
-  }, [data, due, month, scope, year])
+  }, [data, due, memberDetailOn, month, reportMembers, scope, year])
 
-  function applyPreset(kind: 'expenses' | 'expenses-balance' | 'payments-month' | 'payments-all') {
+  function applyPreset(
+    kind: 'expenses' | 'expenses-balance' | 'payments-month' | 'payments-all' | 'members-detail',
+  ) {
     if (kind === 'expenses') {
       setExpensesOn(true)
       setBalanceOn(false)
       setPaymentsOn(false)
+      setMemberDetailOn(false)
       return
     }
     if (kind === 'expenses-balance') {
       setExpensesOn(true)
       setBalanceOn(true)
       setPaymentsOn(false)
+      setMemberDetailOn(false)
       return
     }
     if (kind === 'payments-month') {
       setExpensesOn(false)
       setBalanceOn(false)
       setPaymentsOn(true)
+      setMemberDetailOn(false)
       setScope('month')
+      return
+    }
+    if (kind === 'payments-all') {
+      setExpensesOn(false)
+      setBalanceOn(false)
+      setPaymentsOn(true)
+      setMemberDetailOn(false)
+      setScope('all')
       return
     }
     setExpensesOn(false)
     setBalanceOn(false)
-    setPaymentsOn(true)
+    setPaymentsOn(false)
+    setMemberDetailOn(true)
     setScope('all')
+  }
+
+  function toggleMember(id: string) {
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    )
+  }
+
+  function selectAllMembers() {
+    setSelectedMemberIds(data.members.map((member) => member.id))
+  }
+
+  function clearMemberSelection() {
+    setSelectedMemberIds([])
   }
 
   function printNow() {
     if (!selected) return
+    if (memberDetailOn && reportMembers.length === 0) return
     window.print()
   }
+
+  const canPrint =
+    selected &&
+    (!memberDetailOn || reportMembers.length > 0) &&
+    (!filterActive || reportMembers.length > 0)
 
   return (
     <div className="page print-page">
@@ -133,6 +179,13 @@ export function PrintPage({ onNavigate }: Props) {
           <button type="button" className="btn ghost compact" onClick={() => applyPreset('payments-all')}>
             مدفوعات كل الشهور
           </button>
+          <button
+            type="button"
+            className="btn ghost compact span-2"
+            onClick={() => applyPreset('members-detail')}
+          >
+            تقرير مفصّل لعضو أو أكثر
+          </button>
         </div>
         <label className="check">
           <input type="checkbox" checked={expensesOn} onChange={(e) => setExpensesOn(e.target.checked)} />
@@ -143,17 +196,75 @@ export function PrintPage({ onNavigate }: Props) {
           المتبقي في الصندوق والرصيد
         </label>
         <label className="check">
-          <input type="checkbox" checked={paymentsOn} onChange={(e) => setPaymentsOn(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={paymentsOn}
+            onChange={(e) => {
+              setPaymentsOn(e.target.checked)
+              if (e.target.checked) setMemberDetailOn(false)
+            }}
+          />
           مدفوعات الأعضاء
         </label>
-        <label>
-          نطاق التقرير
-          <select value={scope} onChange={(e) => setScope(e.target.value as 'month' | 'all')}>
-            <option value="month">شهر واحد</option>
-            <option value="all">كل الشهور</option>
-          </select>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={memberDetailOn}
+            onChange={(e) => {
+              setMemberDetailOn(e.target.checked)
+              if (e.target.checked) {
+                setPaymentsOn(false)
+                setScope('all')
+              }
+            }}
+          />
+          تقرير مفصّل لعضو أو أكثر
         </label>
-        {scope === 'month' ? (
+
+        {(paymentsOn || memberDetailOn) && data.members.length > 0 ? (
+          <div className="member-filter">
+            <div className="member-filter-head">
+              <p className="muted">
+                {filterActive
+                  ? `محدد: ${selectedMemberIds.length} من ${data.members.length}`
+                  : 'كل الأعضاء (أو اختر عضواً واحداً أو أكثر)'}
+              </p>
+              <div className="row-actions">
+                <button type="button" className="btn ghost compact" onClick={selectAllMembers}>
+                  تحديد الكل
+                </button>
+                <button type="button" className="btn ghost compact" onClick={clearMemberSelection}>
+                  إلغاء التحديد
+                </button>
+              </div>
+            </div>
+            <div className="member-check-list">
+              {data.members.map((member) => (
+                <label key={member.id} className="check member-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedMemberIds.includes(member.id)}
+                    onChange={() => toggleMember(member.id)}
+                  />
+                  {member.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {!memberDetailOn ? (
+          <label>
+            نطاق التقرير
+            <select value={scope} onChange={(e) => setScope(e.target.value as 'month' | 'all')}>
+              <option value="month">شهر واحد</option>
+              <option value="all">كل الشهور</option>
+            </select>
+          </label>
+        ) : (
+          <p className="muted">التقرير المفصّل يعرض كل الشهور لكل عضو محدد.</p>
+        )}
+        {!memberDetailOn && scope === 'month' ? (
           <div className="filters">
             <label>
               الشهر
@@ -177,7 +288,10 @@ export function PrintPage({ onNavigate }: Props) {
             </label>
           </div>
         ) : null}
-        <button type="button" className="btn" disabled={!selected} onClick={printNow}>
+        {memberDetailOn && data.members.length === 0 ? (
+          <p className="banner">أضف أعضاء أولاً قبل طباعة تقرير مفصّل.</p>
+        ) : null}
+        <button type="button" className="btn" disabled={!canPrint} onClick={printNow}>
           طباعة الملف
         </button>
       </section>
@@ -185,7 +299,13 @@ export function PrintPage({ onNavigate }: Props) {
       <article className="print-sheet">
         <header className="print-head">
           <h1>{data.settings.name}</h1>
-          <p>{periodLabel}</p>
+          <p>
+            {memberDetailOn
+              ? filterActive
+                ? `تقرير مفصّل — ${reportMembers.map((m) => m.name).join('، ')}`
+                : 'تقرير مفصّل — كل الأعضاء'
+              : periodLabel}
+          </p>
           <p>{formatDate(todayIso())}</p>
         </header>
 
@@ -256,65 +376,79 @@ export function PrintPage({ onNavigate }: Props) {
           </section>
         ) : null}
 
+        {memberDetailOn ? (
+          <section>
+            <h2>تقرير الأعضاء المفصّل</h2>
+            {reportMembers.length === 0 ? (
+              <p className="muted">لا يوجد أعضاء في التقرير. اختر عضواً واحداً على الأقل أو ألغِ التحديد لعرض الكل.</p>
+            ) : (
+              <>
+                {reportMembers.map((member) => (
+                  <MemberDetailBlock
+                    key={member.id}
+                    member={member}
+                    rows={paymentRows.filter((row) => row.memberId === member.id)}
+                    lifetime={memberPaidTotal(data, member.id)}
+                    currency={currency}
+                  />
+                ))}
+                {reportMembers.length > 1 ? (
+                  <>
+                    <h3>ملخص المجاميع</h3>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>العضو</th>
+                          <th>مجموع ما دفع</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportMembers.map((member) => (
+                          <tr key={member.id}>
+                            <td>{member.name}</td>
+                            <td>{formatMoney(memberPaidTotal(data, member.id), currency)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <th>المجموع</th>
+                          <th>
+                            {formatMoney(
+                              reportMembers.reduce(
+                                (sum, member) => sum + memberPaidTotal(data, member.id),
+                                0,
+                              ),
+                              currency,
+                            )}
+                          </th>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </>
+                ) : null}
+              </>
+            )}
+          </section>
+        ) : null}
+
         {paymentsOn ? (
           <section>
-            <h2>{scope === 'all' ? 'مدفوعات الأعضاء — كل الشهور' : 'مدفوعات الأعضاء — شهر واحد'}</h2>
-            {data.members.length === 0 ? (
+            <h2>
+              {scope === 'all' ? 'مدفوعات الأعضاء — كل الشهور' : 'مدفوعات الأعضاء — شهر واحد'}
+              {filterActive ? ` (${reportMembers.length})` : ''}
+            </h2>
+            {reportMembers.length === 0 ? (
               <p className="muted">لا يوجد أعضاء بعد.</p>
             ) : scope === 'all' ? (
               <>
-                {data.members.map((member) => {
+                {reportMembers.map((member) => {
                   const rows = paymentRows.filter((row) => row.memberId === member.id)
                   const receivedSum = rows.reduce((sum, row) => sum + row.received, 0)
                   return (
                     <div key={member.id} className="print-member">
                       <h3>{member.name}</h3>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>الشهر</th>
-                            <th>المستحق</th>
-                            <th>الاشتراك</th>
-                            <th>إضافي</th>
-                            <th>الإجمالي</th>
-                            <th>المتبقي</th>
-                            <th>الحالة</th>
-                            <th>تاريخ الدفع</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((row) => (
-                            <tr key={`${row.memberId}-${row.year}-${row.month}`}>
-                              <td>
-                                {MONTHS_AR[row.month - 1]} {row.year}
-                              </td>
-                              <td>{formatMoney(row.due, currency)}</td>
-                              <td>{formatMoney(row.paid, currency)}</td>
-                              <td>{formatMoney(row.extra, currency)}</td>
-                              <td>{formatMoney(row.received, currency)}</td>
-                              <td>{formatMoney(row.remaining, currency)}</td>
-                              <td>{statusLabel(row.status)}</td>
-                              <td>{row.date ? formatDate(row.date) : '—'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <th>المجموع</th>
-                            <th>{formatMoney(rows.reduce((sum, row) => sum + row.due, 0), currency)}</th>
-                            <th>{formatMoney(rows.reduce((sum, row) => sum + row.paid, 0), currency)}</th>
-                            <th>{formatMoney(rows.reduce((sum, row) => sum + row.extra, 0), currency)}</th>
-                            <th>{formatMoney(receivedSum, currency)}</th>
-                            <th>
-                              {formatMoney(
-                                rows.reduce((sum, row) => sum + row.remaining, 0),
-                                currency,
-                              )}
-                            </th>
-                            <th colSpan={2} />
-                          </tr>
-                        </tfoot>
-                      </table>
+                      <PaymentDetailTable rows={rows} receivedSum={receivedSum} currency={currency} />
                     </div>
                   )
                 })}
@@ -327,7 +461,7 @@ export function PrintPage({ onNavigate }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.members.map((member) => (
+                    {reportMembers.map((member) => (
                       <tr key={member.id}>
                         <td>{member.name}</td>
                         <td>{formatMoney(memberPaidTotal(data, member.id), currency)}</td>
@@ -388,6 +522,133 @@ export function PrintPage({ onNavigate }: Props) {
         ) : null}
       </article>
     </div>
+  )
+}
+
+function MemberDetailBlock({
+  member,
+  rows,
+  lifetime,
+  currency,
+}: {
+  member: Member
+  rows: PaymentRow[]
+  lifetime: number
+  currency: string
+}) {
+  const paidMonths = rows.filter((row) => row.paid > 0 || row.extra > 0)
+  const receivedSum = rows.reduce((sum, row) => sum + row.received, 0)
+  const dueSum = rows.reduce((sum, row) => sum + row.due, 0)
+  const remainingSum = rows.reduce((sum, row) => sum + row.remaining, 0)
+  const fullCount = rows.filter((row) => row.status === 'full').length
+  const partialCount = rows.filter((row) => row.status === 'partial').length
+  const noneCount = rows.filter((row) => row.status === 'none').length
+
+  return (
+    <div className="print-member">
+      <h3>{member.name}</h3>
+      <table>
+        <tbody>
+          {member.phone ? (
+            <tr>
+              <th>الجوال</th>
+              <td>{member.phone}</td>
+            </tr>
+          ) : null}
+          <tr>
+            <th>تاريخ الانضمام</th>
+            <td>
+              <DualDate isoDate={member.createdAt} />
+            </td>
+          </tr>
+          <tr>
+            <th>مجموع ما دفع</th>
+            <td>{formatMoney(lifetime, currency)}</td>
+          </tr>
+          <tr>
+            <th>الشهور المكتملة</th>
+            <td>
+              {fullCount} مكتمل — {partialCount} جزئي — {noneCount} لم يسدد
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <PaymentDetailTable rows={rows} receivedSum={receivedSum} currency={currency} />
+      <table>
+        <tbody>
+          <tr>
+            <th>إجمالي المستحق في النطاق</th>
+            <td>{formatMoney(dueSum, currency)}</td>
+          </tr>
+          <tr>
+            <th>إجمالي المدفوع في النطاق</th>
+            <td>{formatMoney(receivedSum, currency)}</td>
+          </tr>
+          <tr>
+            <th>إجمالي المتبقي في النطاق</th>
+            <td>{formatMoney(remainingSum, currency)}</td>
+          </tr>
+          <tr>
+            <th>عدد الشهور المسجّل فيها دفع</th>
+            <td>{paidMonths.length}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function PaymentDetailTable({
+  rows,
+  receivedSum,
+  currency,
+}: {
+  rows: PaymentRow[]
+  receivedSum: number
+  currency: string
+}) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>الشهر</th>
+          <th>المستحق</th>
+          <th>الاشتراك</th>
+          <th>إضافي</th>
+          <th>الإجمالي</th>
+          <th>المتبقي</th>
+          <th>الحالة</th>
+          <th>تاريخ الدفع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={`${row.memberId}-${row.year}-${row.month}`}>
+            <td>
+              {MONTHS_AR[row.month - 1]} {row.year}
+            </td>
+            <td>{formatMoney(row.due, currency)}</td>
+            <td>{formatMoney(row.paid, currency)}</td>
+            <td>{formatMoney(row.extra, currency)}</td>
+            <td>{formatMoney(row.received, currency)}</td>
+            <td>{formatMoney(row.remaining, currency)}</td>
+            <td>{statusLabel(row.status)}</td>
+            <td>{row.date ? formatDate(row.date) : '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>المجموع</th>
+          <th>{formatMoney(rows.reduce((sum, row) => sum + row.due, 0), currency)}</th>
+          <th>{formatMoney(rows.reduce((sum, row) => sum + row.paid, 0), currency)}</th>
+          <th>{formatMoney(rows.reduce((sum, row) => sum + row.extra, 0), currency)}</th>
+          <th>{formatMoney(receivedSum, currency)}</th>
+          <th>{formatMoney(rows.reduce((sum, row) => sum + row.remaining, 0), currency)}</th>
+          <th colSpan={2} />
+        </tr>
+      </tfoot>
+    </table>
   )
 }
 

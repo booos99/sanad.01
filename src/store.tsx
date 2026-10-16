@@ -55,6 +55,7 @@ type StoreValue = {
   ) => void
   unmarkPaid: (memberId: string, year: number, month: number) => void
   addExpense: (title: string, amount: number, date: string) => void
+  updateExpense: (id: string, title: string, amount: number, date: string) => void
   deleteExpense: (id: string) => void
   replaceAll: (next: AppData) => void
   importFromText: (text: string) => void
@@ -326,6 +327,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [role],
   )
 
+  const updateExpense = useCallback(
+    (id: string, title: string, amount: number, date: string) => {
+      if (role !== 'admin') return
+      const trimmed = title.trim()
+      if (!trimmed || !Number.isFinite(amount) || amount <= 0) return
+      setData((prev) => ({
+        ...prev,
+        expenses: prev.expenses.map((expense) =>
+          expense.id === id
+            ? { ...expense, title: trimmed, amount: roundMoney(amount), date }
+            : expense,
+        ),
+      }))
+    },
+    [role],
+  )
+
   const deleteExpense = useCallback(
     (id: string) => {
       if (role !== 'admin') return
@@ -380,6 +398,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPayment,
       unmarkPaid,
       addExpense,
+      updateExpense,
       deleteExpense,
       replaceAll,
       importFromText,
@@ -395,6 +414,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [
     addExpense,
+    updateExpense,
     addMember,
     backups,
     changePin,

@@ -1009,6 +1009,42 @@ select:disabled {
   line-height: 1.25;
 }
 
+.preset-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.member-filter {
+  display: grid;
+  gap: 10px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--line);
+}
+
+.member-filter-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.member-filter-head .muted {
+  margin: 0;
+}
+
+.member-check-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 4px 2px;
+}
+
+.member-check {
+  font-size: 0.9rem;
+}
+
 .check {
   flex-direction: row;
   align-items: center;
