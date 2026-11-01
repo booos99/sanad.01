@@ -4,24 +4,53 @@ import { DualDate } from '../DualDate'
 import { formatMoney, todayIso } from '../format'
 import { Modal, ModalForm } from '../Modal'
 import { useStore } from '../store'
+import type { Expense } from '../types'
 
 export function ExpensesPage() {
-  const { data, addExpense, deleteExpense, canEdit } = useStore()
+  const { data, addExpense, updateExpense, deleteExpense, canEdit } = useStore()
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Expense | null>(null)
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayIso())
   const ordered = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date))
 
+  function resetForm() {
+    setTitle('')
+    setAmount('')
+    setDate(todayIso())
+  }
+
+  function openCreate() {
+    setEditing(null)
+    resetForm()
+    setOpen(true)
+  }
+
+  function openEdit(expense: Expense) {
+    setEditing(expense)
+    setTitle(expense.title)
+    setAmount(String(expense.amount))
+    setDate(expense.date)
+    setOpen(true)
+  }
+
+  function closeModal() {
+    setOpen(false)
+    setEditing(null)
+    resetForm()
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault()
     const value = Number(amount)
     if (!title.trim() || !Number.isFinite(value) || value <= 0) return
-    addExpense(title, value, date)
-    setTitle('')
-    setAmount('')
-    setDate(todayIso())
-    setOpen(false)
+    if (editing) {
+      updateExpense(editing.id, title, value, date)
+    } else {
+      addExpense(title, value, date)
+    }
+    closeModal()
   }
 
   return (
@@ -32,7 +61,7 @@ export function ExpensesPage() {
           <h1>حركات الصرف</h1>
         </div>
         {canEdit ? (
-          <button type="button" className="btn compact" onClick={() => setOpen(true)}>
+          <button type="button" className="btn compact" onClick={openCreate}>
             إضافة
           </button>
         ) : null}
@@ -54,15 +83,20 @@ export function ExpensesPage() {
                 </span>
               </div>
               {canEdit ? (
-                <button
-                  type="button"
-                  className="text-danger"
-                  onClick={() => {
-                    if (confirm('حذف هذا المصروف؟')) deleteExpense(expense.id)
-                  }}
-                >
-                  حذف
-                </button>
+                <div className="row-actions">
+                  <button type="button" className="btn compact" onClick={() => openEdit(expense)}>
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    className="text-danger"
+                    onClick={() => {
+                      if (confirm('حذف هذا المصروف؟')) deleteExpense(expense.id)
+                    }}
+                  >
+                    حذف
+                  </button>
+                </div>
               ) : null}
             </li>
           ))}
@@ -70,7 +104,7 @@ export function ExpensesPage() {
       )}
 
       {open && canEdit && (
-        <Modal title="مصروف جديد" onClose={() => setOpen(false)}>
+        <Modal title={editing ? 'تعديل مصروف' : 'مصروف جديد'} onClose={closeModal}>
           <ModalForm onSubmit={submit}>
             <label>
               البيان
@@ -90,7 +124,7 @@ export function ExpensesPage() {
             </label>
             <DateField label="التاريخ" value={date} onChange={setDate} required />
             <button type="submit" className="btn">
-              حفظ المصروف
+              {editing ? 'حفظ التعديل' : 'حفظ المصروف'}
             </button>
           </ModalForm>
         </Modal>
